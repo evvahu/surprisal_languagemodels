@@ -182,10 +182,10 @@ if __name__ == '__main__':
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers_res.csv'
     stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers.csv'
-    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers_electra_discriminator_results.csv'
+    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers_electra_MLM_results.csv'
     
     #out_path = ''
-    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='electra', task='discriminator', lang='HI')
+    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='electra', task='MLM', lang='HI')
     t_surp.get_all_scores_hi()
     
     

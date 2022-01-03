@@ -187,6 +187,7 @@ if __name__ == "__main__":
             stimuli = stim[3]
             print('length surprisal : {}, length stimuli: {}'.format(len(surp), len(stimuli)))
             for su, pr, st in zip(surp, prob, stimuli):
+                cond2 = stim[2]
                 wf.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(stim[0], stim[1],stim[2], st, pr, su))
     
 
