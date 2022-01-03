@@ -1,0 +1,7 @@
+.DS_Store
+data
+plot1.png
+plot2.png
+preprocessing_data.txt
+src/__pycache__/
+stats/
