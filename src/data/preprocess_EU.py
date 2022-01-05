@@ -3,6 +3,7 @@ import nltk
 import random
 import spacy
 from tqdm import tqdm 
+import gzip
 #nltk.download('punkt')
 
 symbols = {'%', '+', '<', '>', '\\', '/', '::', '*', '{', '}'}
@@ -94,11 +95,51 @@ def preprocess_OSCAR(path, out_path):
                 
 
 
+def preprocess_BMC(path, out_path):
+    """
+    encoding due to UnicodeError, see: https://flutterq.com/solved-unicodedecodeerror-utf-8-codec-cant-decode-byte-0x8b-in-position-1-invalid-start-byte-while-reading-csv-file-in-pandas/
+    """
+    #with gzip.open(path, 'rt', encoding='utf8') as rf:
+    sent_c = 0
+    word_c = 0
+    with open(out_path, 'w') as wf:
+        with gzip.open(path, 'rt', encoding='ISO-8859–1') as rf:
+            for i, l in enumerate(rf):
+                l = l.strip()
+                if not l: continue
+                sent = nltk.tokenize.sent_tokenize(l)
+                for s in sent:
+                    wf.write('{}\n'.format(s))
+                    sent_c +=1
+                    word_c += len(nltk.tokenize.word_tokenize(s))
+    print('nr of sentences: {}, number of tokens: {}'.format(sent_c, word_c))
+def shorten_BMC(path, out_path, max=90000000):
+    tok_count = 0
+    all_sents = []
+    with open(path, 'r') as rf:
+        for l in rf:
+            l = l.strip()
+            all_sents.append(l)
+    print('arrived at shuffle')
+    random.shuffle(all_sents)
+    with open(out_path, 'w') as wf:
+        for sent in all_sents:
+            if tok_count < max:
+                length = len(nltk.tokenize.word_tokenize(sent)) -2
+                #print(length, nltk.tokenize.word_tokenize(sent)) 
+                if length > 3:
+                    wf.write('{}\n'.format(sent))
+                    tok_count += length
+                    print(tok_count)
+                else:
+                    continue
+            else:
+                break
 
 
 if __name__ == '__main__':
-    #path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/eu.txt'
-    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/eu_filtered.txt' 
-    #preprocess_OSCAR(path, out_path)
-    #with open('/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/eu_filtered_all_final.txt', 'w') as wf:
-    print('hello')
+    #path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/corpusBMC.txt.gz'
+
+    path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/bmc_sents.txt' 
+    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/bmc_sents_short2.txt'
+    shorten_BMC(path, out_path)

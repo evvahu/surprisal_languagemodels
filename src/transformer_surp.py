@@ -5,9 +5,6 @@ import numpy as np
 
 device = torch.device('cpu')
 
-class SyntaxAwareFineTuner():
-    def __init__(self):
-        pass
 
 #device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -62,13 +59,25 @@ class TransformerSurprisal():
         probs = torch.sigmoid(out.logits)
         return probs[0][target_idx]
 
-    def get_all_scores_eu(self):
+    def get_scores_eu(self):
+        if self.write:
+            wf = open(self.out_path, 'w')
+            wf.write('sent_id\tamb\talign\tscore_correct\n')
+        for id, c1, c2, sent, wc in self.read_stimuli_eu(self.s_path):
+            score = self._get_preds(sent, [wc])
+            if not score:
+                continue
+            else:
+                if self.write:
+                    wf.write('{}\t{}\t{}\t{}\n'.format(id, c1,c2, score[0]))
+
+    def get_all_scores_eu_aux(self):
         all_scores = dict()
         lt = 0
         if self.write:
             wf = open(self.out_path, 'w')
             wf.write('sent_id\tamb\talign\tscore_correct\tscore_incorr1\tscore_incorrec2\tscore_inccorect3\tlargerthan\n')
-        for sent, wc, w1, w2, w3, s_id, c1, c2 in self.read_stimuli_eu(self.s_path):
+        for sent, wc, w1, w2, w3, s_id, c1, c2 in self.read_stimuli_eu_aux(self.s_path):
             scores = self._get_preds(sent, [wc, w1, w2, w3])
             if not scores:
                 continue
@@ -151,8 +160,15 @@ class TransformerSurprisal():
 
    
 
-        
     def read_stimuli_eu(self, stimuli_path):
+        with open(stimuli_path, 'r') as rf:
+            next(rf)
+            for l in rf:
+                l = l.strip()
+                s_id, c1, c2, sent, wc= l.split('\t') 
+                yield s_id, c1, c2, sent, wc
+
+    def read_stimuli_eu_aux(self, stimuli_path):
         with open(stimuli_path, 'r') as rf:
             next(rf)
             for l in rf:
@@ -172,21 +188,23 @@ class TransformerSurprisal():
 if __name__ == '__main__':
     path = ''
     outpath = ''
-    modelname = 'monsoon-nlp/hindi-tpu-electra'
+    #modelname = 'monsoon-nlp/hindi-tpu-electra'
     #modelname = 'monsoon-nlp/hindi-bert'
-    #modelname = 'ixa-ehu/berteus-base-cased'
+    modelname = 'ixa-ehu/berteus-base-cased'
     #modelname = 'flax-community/roberta-hindi'
     #modelname = 'bert-base-multilingual-cased'
     #modelname = 'google/electra-small-discriminator'
     #transi = TransformerSurprisal('hindi', path, outpath)
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers_res.csv'
-    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers.csv'
-    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers_electra_MLM_results.csv'
+    #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers.csv'
+    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers_electra_MLM_results.csv'
     
     #out_path = ''
-    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='electra', task='MLM', lang='HI')
-    t_surp.get_all_scores_hi()
+    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers.csv'
+    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers_results.csv' 
+    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM', lang='EU')
+    t_surp.get_scores_eu()
     
     
     
