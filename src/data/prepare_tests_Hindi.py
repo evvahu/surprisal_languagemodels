@@ -1,22 +1,37 @@
-def create_masked_sents(sent_dict, cat_to_mask = 'V', mask_tok='[MASK]'):
-    sent = []
-    target = ''
-    mask_tok = '***' + mask_tok + '***'
-    for cat, word in sent_dict.items():
-        if len(word) < 1: continue
-        if cat == cat_to_mask:
-            sent.append(mask_tok)
-            target = word
-        else:
-            sent.append(word)
-    return ' '.join(sent), target
-
-    
-path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_separated.csv'
-out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers.csv'
-
 conds_dict = {'AMI':'AI', 'AFI': 'AI', 'UMI':'UI', 'UFI': 'UI', 'AMP': 'AP', 'AFP': 'AP', 'UMP':'UP', 'UFP': 'UP'}
+
+mask = '***[MASK]***' 
+
+def create_new_ordered_sent(sent_d, cond):
+    cond = conds_dict[cond]
+
+    if cond == 'AI':
+        return ' '.join([sent_d['A'], sent_d['P'], mask, sent_d['Aux'], punct]).strip()
+    elif cond == 'UI':
+        return ' '.join([sent_d['A'],  sent_d['P'],sent_d['Acc'], mask, sent_d['Aux'], punct]).strip()
+    elif cond == 'AP':
+        return ' '.join([sent_d['A'], sent_d['Erg'], sent_d['P'], mask, sent_d['Aux'], punct]).strip() 
+    elif cond == 'UP':
+        return ' '.join([sent_d['A'],sent_d['Erg'], sent_d['P'], sent_d['Acc'], mask, sent_d['Aux'], punct]).strip() 
+    else:
+        print('invalid condition: {}'.format(cond))
+        return None
+
+
+path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_separated.csv'
+#out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_transformers.csv'
+#out_path2 = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_LSTM.csv'
+
+out_path_t_transf = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_test_transformers.csv'
+out_path_t_lstm = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_test_lstm.csv'  
+
 stimuli_dict = dict()
+stim_d = dict()
+all_sents = dict()
+#writer_trans = open(out_path, 'w')
+#writer_trans.write('{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent', 'correct_form'))
+#writer_lstm = open(out_path2, 'w')
+#writer_lstm.write('{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent'))
 with open(path, 'r') as rf:
     next(rf)
     for l in rf:
@@ -24,8 +39,9 @@ with open(path, 'r') as rf:
         line = l.split(',')
         sent_id = line[0]
         if line[0] not in stimuli_dict:
-            stimuli_dict[sent_id] = dict() #'AI', 'AP', 'UP', 'UI'}
-        cond = conds_dict[line[1]]
+            stimuli_dict[sent_id] = {} #'AI', 'AP', 'UP', 'UI'}
+            stim_d[sent_id] = {}
+        cond = line[1]
         ag = line[6]
         erg = line[7]
         pat = line[2]
@@ -33,7 +49,66 @@ with open(path, 'r') as rf:
         verb = line[4]
         aux = line[5]
         punct = line[8]
-        stimuli_dict[sent_id][cond] =  {'A':ag, 'P':pat, 'ERG': erg, 'ACC': acc, 'V': verb, 'AUX': aux, 'punct': punct}
+        dict_sent = {'A':ag, 'Erg': erg, 'P': pat, 'Acc':acc, 'V': verb, 'Aux':aux, 'Punct':punct}
+        sent = create_new_ordered_sent(dict_sent, cond)
+        corr_v = verb
+        stim_d[sent_id][cond] = (sent, corr_v)
+        #writer_trans.write('{}\t{}\t{}\t{}\n'.format(sent_id, cond, sent, corr_v))
+        #riter_lstm.write('{}\t{}\t{}\n'.format(sent_id, cond, sent.replace(mask, corr_v)))
+
+#writer_trans.close()
+#writer_lstm.close()
+
+writer_test_trans = open(out_path_t_transf, 'w')
+writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent', 'form', 'correct', 'cond_verb'))
+
+#writer_test_lstm = open(out_path_t_lstm)
+for s_id, c in stim_d.items():
+    for cond, sent_tup in c.items():
+        g = cond[1]
+        s, corr_form = sent_tup
+        if (cond == 'UFI') or (cond == 'UFP') or (cond == 'UMI'):
+            continue
+        writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, corr_form, 'True', cond))
+        if g == 'F':
+            if cond == 'AFI': #or (cond == 'UFI'):
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AFP'][1], 'False', 'AFP'))
+            elif cond == 'UFI':
+                continue
+            elif cond == 'AFP':
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AFI'][1], 'False', 'AFI'))
+            else:
+                continue 
+        else:
+            if cond == 'AMI':
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AMP'][1], 'False', 'AMP'))
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['UMP'][1], 'False', 'UMP'))
+            elif cond == 'UMI':
+                print('not written')
+                continue
+                #writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AMP'][1], 'False', 'AMP'))
+                #writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['UMP'][1], 'False', 'UMP'))
+            elif cond == 'AMP':
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['UMP'][1], 'False', 'UMP'))
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AMI'][1], 'False', 'AMI'))
+            else:
+                print(cond)
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AMP'][1], 'False', 'AMP'))
+                writer_test_trans.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, cond, s, c['AMI'][1], 'False', 'AMI'))
+
+
+
+writer_test_trans.close()
+with open(out_path_t_lstm, 'w') as wf:
+    with open(out_path_t_transf, 'r') as rf:
+        wf.write('{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent', 'correct', 'cond_verb'))
+        next(rf)
+        for l in rf:
+            l = l.strip()
+            line = l.split('\t')
+            wf.write('{}\t{}\t{}\t{}\t{}\n'.format(line[0], line[1], line[2].replace(mask, line[3]), line[4], line[5]))
+
+"""
 test_stimuli = dict()
 with open(out_path, 'w') as wf:
     wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'masked_sent', 'correct', 'typec', 'wrong1', 'wrong2', 'type1', 'type2'))
@@ -85,7 +160,7 @@ with open(out_path, 'w') as wf:
         #wf.write('{},{},{},{},{},{},{},{},{}\n'.format(sent_id, 'UP_AI', cond_UP['A'], cond_UP['ERG'], cond_UP['P'], cond_UP['ACC'], cond_AI['V'], cond_UP['AUX'], cond_UP['punct'])) 
         # wrong unambig. PFV, verb form: AP
         #wf.write('{},{},{},{},{},{},{},{},{}\n'.format(sent_id, 'UP_AP', cond_UP['A'], cond_UP['ERG'], cond_UP['P'], cond_UP['ACC'], cond_AP['V'], cond_UP['AUX'], cond_UP['punct'])) 
-"""
+
 out_path2 = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_text.txt'
 with open(out_path2, 'w') as wf:
     with open(out_path, 'r') as rf:

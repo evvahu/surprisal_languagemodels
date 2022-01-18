@@ -113,7 +113,7 @@ def preprocess_BMC(path, out_path):
                     sent_c +=1
                     word_c += len(nltk.tokenize.word_tokenize(s))
     print('nr of sentences: {}, number of tokens: {}'.format(sent_c, word_c))
-def shorten_BMC(path, out_path, max=90000000):
+def shorten_BMC(path, out_path, max=170000000):
     tok_count = 0
     all_sents = []
     with open(path, 'r') as rf:
@@ -130,7 +130,6 @@ def shorten_BMC(path, out_path, max=90000000):
                 if length > 3:
                     wf.write('{}\n'.format(sent))
                     tok_count += length
-                    print(tok_count)
                 else:
                     continue
             else:

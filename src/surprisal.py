@@ -18,29 +18,34 @@ import numpy as np
 
 class EvaluationSurprisal():
 
-    def __init__(self, path_data, path_model, path_stimuli, wo, cuda=False, oov=False, map_loaction='cpu'):
+    def __init__(self, path_data, path_model, path_stimuli, wo, str_split = '\t', cuda=False, oov=False, map_loaction='cpu', lang='EU'):
         self.model = torch.load(path_model, map_location=map_loaction)
 
         self.cuda = cuda
         self.dictionary = Dictionary(path_data)
-        self.cond_dict = {'AMI':'AI', 'AFI': 'AI', 'UMI':'UI', 'UFI': 'UI', 'AMP': 'AP', 'AFP': 'AP', 'UMP':'UP', 'UFP': 'UP'}
-        self.stimuli = self.read_stimuli(path_stimuli)
+        if lang == 'HI':
+            self.cond_dict = {'AMI':'AI', 'AFI': 'AI', 'UMI':'UI', 'UFI': 'UI', 'AMP': 'AP', 'AFP': 'AP', 'UMP':'UP', 'UFP': 'UP'}
+        elif lang == 'EU':
+            self.cond_dict = {'1': 'Amb_Unac', '2': 'Amb_Unerg', '3': 'Unamb_Unac' ,'4': 'Unamb_Unerg'}
+        else:
+            print('invalid language:{}'.format(lang))
+        print(self.cond_dict)
+        self.stimuli = self.read_stimuli(path_stimuli, str_split)
         self.count = 0
         self.oov = oov
         
         if self.oov:
-            self.id_dict = self.get_id_dict(wo)
+            self.id_dict = self.get_id_dict(wo, lang)
+            print(self.id_dict)
         
-    def read_stimuli(self, path_stimuli):
+    def read_stimuli(self, path_stimuli, split_str = '\t'):
         df = pd.DataFrame(columns=['Nr', 'Condition', 'Sentence'])
         stimuli = []
         with open(path_stimuli) as f:
             for l in f:
                 l = l.strip()
                 if not l:continue
-                print(l)
-                line = l.split(' ')
-                print(line)
+                line = l.split(split_str)
                 idx = line[0]
                 cond = line[1]
                 add_inf = ''
@@ -52,7 +57,7 @@ class EvaluationSurprisal():
                 else:
                     cond_f = cond
                 toks = line[2:]
-                print('number of tokens in one stimuli: {}'.format(len(toks)))
+                #print('number of tokens in one stimuli: {}'.format(len(toks)))
                 stimuli.append((idx, cond_f,add_inf, toks))
         return stimuli
 
@@ -68,7 +73,6 @@ class EvaluationSurprisal():
         oov = False
         list_oovs = []
         for i,t in enumerate(sent[:id_oov+1]):
-            print(sent,i, id_oov)
             if t not in self.dictionary.word2idx:
                 oov = True
                 list_oovs.append(i)
@@ -84,18 +88,17 @@ class EvaluationSurprisal():
             all_stims = []
             oovs_dict = dict()
             for id, cond, add_inf, sentence in self.stimuli:
+                if len(sentence) == 1:
+                    sentence = sentence[0].split(' ')
                 if self.oov:
-                    id_oov = self.id_dict[cond]
+                    id_oov = self.id_dict[str(cond)]
                     OOV, oovs_list = self.check_oov(sentence, id_oov)
                     oovs_dict[id] = oovs_list
-                    print(id, OOV)
                 else:
                     OOV = False
                 if not OOV: 
                     all_stims.append([id,cond, add_inf, sentence])
-                    print(OOV)
                     input = torch.LongTensor([self.indexify(w) for w in sentence])
-                    
                     if self.cuda:
                         input = input.cuda()
 
@@ -127,20 +130,35 @@ class EvaluationSurprisal():
                         wf.write('{}\t{}\t{}\n'.format(id, i, t))
                     else:
                         continue
-    def get_id_dict(self, wo):
+    def get_id_dict(self, wo, lang):
         id_dict = dict()
         print(wo)
         assert wo == 'B' or wo == 'T', 'wrong word order name'
-        if wo == 'B':
-            id_dict['AI'] = 1
-            id_dict['AP'] = 1
-            id_dict['UP'] = 2
-            id_dict['UI'] = 2
-        else:  # wo =='T':
-            id_dict['AI'] = 2
-            id_dict['AP'] = 3
-            id_dict['UP'] = 4
-            id_dict['UI'] = 4
+        if lang == 'HI':
+            if wo == 'B':
+                id_dict['AI'] = 1
+                id_dict['AP'] = 1
+                id_dict['UP'] = 2
+                id_dict['UI'] = 2
+            else:  # wo =='T':
+                id_dict['AI'] = 2
+                id_dict['AP'] = 3
+                id_dict['UP'] = 4
+                id_dict['UI'] = 4
+        elif lang =='EU':
+            if wo =='B':
+                id_dict['1'] = 4
+                id_dict['2'] = 4
+                id_dict['3'] = 4
+                id_dict['4'] = 4
+            else:
+                id_dict['AmbAbs'] = 5
+                id_dict['AmbErg'] = 5
+                id_dict['UnambAbs'] = 5
+                id_dict['UnambErg'] = 5
+
+        else:
+            print('unknown lang')
         return id_dict
 
 
@@ -150,6 +168,7 @@ if __name__ == "__main__":
     argp.add_argument("model_path")
     argp.add_argument("stimuli_path")
     argp.add_argument("out_path")
+    argp.add_argument("--lang", type=str, default='EU')
     argp.add_argument("--wo", type=str, default='B') # B or T for Bickel or test 
     argp.add_argument("--seed", type=int, default=1)
     argp.add_argument("--cuda", action="store_true")
@@ -164,8 +183,8 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(argp.seed)
-
-    EvSurp = EvaluationSurprisal(argp.data_path, argp.model_path, argp.stimuli_path, argp.wo, argp.cuda, argp.oov, map_location)
+    str_split = '\t'
+    EvSurp = EvaluationSurprisal(argp.data_path, argp.model_path, argp.stimuli_path, argp.wo, str_split, argp.cuda, argp.oov, map_location, argp.lang)
     #EvSurp.oovs(argp.out_path)
     surp_values, probs_values, total_surps, allstims, oovs_dict = EvSurp.get_surprisals()
 
@@ -185,10 +204,15 @@ if __name__ == "__main__":
         wf.write("{}\t{}\t{}\t{}\t{}\t{}\n".format("sent_id", "cond", "cond2", "word", "probability", "surprisal"))
         for surp, prob, stim, in zip(surp_values, probs_values, allstims):
             stimuli = stim[3]
+            print('stim', stim)
             print('length surprisal : {}, length stimuli: {}'.format(len(surp), len(stimuli)))
             for su, pr, st in zip(surp, prob, stimuli):
-                cond2 = stim[2]
-                wf.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(stim[0], stim[1],stim[2], st, pr, su))
+                
+                if argp.lang =='EU':
+                    cond = stim[1]
+                    cond2 = stim[2]
+                    #cond, cond2 = EvSurp.cond_dict[stim[1]].split('_')
+                wf.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(stim[0], cond, cond2, st, pr, su))
     
 
     #print('length of corpus: {}'.format(len(EvSurp.dictionary)))

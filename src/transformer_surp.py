@@ -3,13 +3,13 @@ import torch
 import numpy as np
 from transformers import pipeline
 device = torch.device('cpu')
-
+import numpy as np
 
 #device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 class TransformerSurprisal():
 
-    def __init__(self, model_name, stimuli_path, out_path, transf = 'bert',task='MLM', lang='Hi'):
+    def __init__(self, model_name, stimuli_path, out_path, transf = 'bert',task='MLM', test = True, lang='Hi'):
         self.s_path = stimuli_path
         self.task = task
         if transf == 'electra':
@@ -43,7 +43,7 @@ class TransformerSurprisal():
         self.write = False
         if len(out_path) > 0:
             self.write = True
-            
+        self.test = test 
         self.out_path = out_path
 
     def _get_discriminator_preds(self, sent):
@@ -63,45 +63,17 @@ class TransformerSurprisal():
         probs = torch.sigmoid(out.logits)
         return probs[0][target_idx]
 
-    def get_scores_eu(self):
-        if self.write:
-            wf = open(self.out_path, 'w')
-            wf.write('sent_id\tamb\talign\tscore_correct\n')
-        for id, c1, c2, sent, wc in self.read_stimuli_eu(self.s_path):
 
-            print('sent input', sent)
-            score = self._get_preds(sent, [wc])
-            if not score:
-                continue
-            else:
-                if self.write:
-                    wf.write('{}\t{}\t{}\t{}\n'.format(id, c1,c2, score[0]))
 
-    def get_all_scores_eu_aux(self):
-        all_scores = dict()
-        lt = 0
-        if self.write:
-            wf = open(self.out_path, 'w')
-            #wf.write('sent_id\tamb\talign\tscore_correct\tscore_incorr1\tscore_incorrec2\tscore_inccorect3\tlargerthan\n')
-            wf.write('{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'amb', 'align', 'score', 'word'))
-        for sent, wc, w1, w2, w3, s_id, c1, c2 in self.read_stimuli_eu_aux(self.s_path):
-            scores = self._get_preds(sent, [wc, w1, w2, w3])
-            if not scores:
-                continue
-            if self.write:
-                larger_than = False
-                if (scores[0] > scores[1]) and (scores[0]>scores[2]):
-                    larger_than = True
-                    lt +=1
-                for indi, (wo, s) in enumerate(zip([wc,w1, w2,w3], scores)):
-                    if indi == 0:
-                        wo = wo + '_corr'
-                    wf.write('{}\t{}\t{}\t{}\t{}\n'.format(s_id, c1, c2, s, wo))
-                    #wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, c1, c2, scores[0], scores[1], scores[2], scores[3], larger_than))
-            all_scores[s_id] = scores
+    def get_all_scores_eu(self):
+        wf = open(self.out_path, 'w')
+        wf.write('{}\t{}\t{}\t{}\t{}\n'.format('sent_id','cond', 'score', 'correct_form', 'cond_verb'))
+        for stim_dict in self.read_stimuli(self.s_path):
+            score = self._get_preds(stim_dict['sent'], stim_dict['form'])
+            score = np.mean(score)
+            wf.write('{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score, stim_dict['correct'], stim_dict['cond_verb']))
+            #wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(s_id, c1, c2, scores[0], scores[1], scores[2], scores[3], larger_than))
 
-        print('largest: {}'.format(lt))
-        return all_scores
 
     def get_all_scores_hi_verb(self):
         writer = open(self.out_path, 'w') 
@@ -129,17 +101,31 @@ class TransformerSurprisal():
             else:
                 curr_sent = stim_dict['sent'].replace(self.mask_tok, stim_dict['form'])
                 score = self._get_discriminator_preds(curr_sent)
+            #if len(score) == 4:
+            #    score_f = score[2]
+            #elif len(score) == 3:
+            #    score_f = score[1]
+            #else:
+            #    score_f = score[-2]
+            #    print('length of score is not 4 o 3:{}'.format(self.tokenizer.tokenize(stim_dict['form'])))
+            if len(score) == 4:
+                score_f = np.mean(score[1:3])
+            elif len(score) == 3:
+                score_f = score[1]
+            elif len(score) >4:
+                score_f = np.mean(score[1:4])
+            else:
+                print('wrong score?')
+            wf.write('{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score_f, stim_dict['correct'], stim_dict['cond_verb']))
 
-            wf.write('{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score, stim_dict['correct'], stim_dict['cond_verb']))
 
-
-    def _get_preds(self, sent,word, test=True):
+    def _get_preds(self, sent,word):
         #for sent, wc, w1, w2 in self.read_stimuli(self.s.path):
         pre, target, post = sent.split('***')
         tokens = ['[CLS]'] + self.tokenizer.tokenize(pre)
         target_idx = len(tokens)
         target= [self.mask_tok]
-        if test:
+        if self.test:
             tokens += target
         else:
             tokens += target + self.tokenizer.tokenize(post) + ['[SEP]']
@@ -153,18 +139,19 @@ class TransformerSurprisal():
         except:
             print('skipping',word)
             return None 
-
+        print(word_id, self.tokenizer.tokenize(word))
         #print(word_ids)
         tens = torch.LongTensor(input_ids).unsqueeze(0)
         #print(target_idx)
-        print(target_idx)
+    
         res = self.model(tens).logits[0, target_idx]
         #print(res)
         sm = torch.nn.Softmax(dim=0)
         res = sm(res)
         score = res[word_id]
-        print(word_id, word, score)
-        return float(torch.mean(score[1:-2]))
+        #print(self.tokenizer.tokenize(word), word_id, word, score)
+         
+        return [float(x) for x in score]
 
    
     def read_stimuli(self, stimuli_path):
@@ -191,14 +178,7 @@ class TransformerSurprisal():
                 s_id, c1, c2, sent, wc, w1, w2, w3 = l.split('\t') 
                 yield sent, wc, w1, w2, w3, s_id, c1, c2
 
-    def read_stimuli_hi(self, stimuli_path):
-        with open(stimuli_path, 'r', encoding='utf8') as rf:
-            next(rf)
-            for l in rf:
-                l = l.strip()
-                s_id, sent, wc, tc, w1, w2, t1, t2 = l.split('\t')
-                #print('test stimuli', wc==w1) 
-                yield sent, wc, w1, w2, tc, t1, t2, s_id
+
 #        with open(stimuli_path, 'r') as rf:
     def read_stimuli_hi_verb(self, stimuli_path):
         with open(stimuli_path, 'r') as rf:
@@ -207,24 +187,46 @@ class TransformerSurprisal():
                 l = l.strip()
                 id, cond, sent, corr = l.split('\t')
                 yield id, cond, sent, corr
+
+    def get_subwords(self):
+        with open(self.out_path, 'w') as wf:
+            for stim_dict in self.read_stimuli(self.s_path):
+                word = stim_dict['form']
+                sent = stim_dict['sent']('***<MASK>***','<mask>')
+                toksd = self.tokenizer.tokenize(word)
+                #wf.write('{}\t{}\n'.format(word, toksd))
+
+
 if __name__ == '__main__':
     path = ''
     outpath = ''
     #modelname = 'monsoon-nlp/hindi-tpu-electra'
     #modelname = 'monsoon-nlp/hindi-bert'
-    #modelname = 'ixa-ehu/berteus-base-cased'
-    modelname = 'surajp/RoBERTa-hindi-guj-san'
+    modelname = 'ixa-ehu/berteus-base-cased'
+    #modelname = 'surajp/RoBERTa-hindi-guj-san'
     #modelname = 'bert-base-multilingual-cased'
     #modelname = 'google/electra-small-discriminator'
+    #modelname= 'flax-community/roberta-hindi'
     #transi = TransformerSurprisal('hindi', path, outpath)
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers_res.csv'
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers_electra_MLM_results.csv'
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_transf.csv'
-    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_test_transformers.csv'
-    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/Hindi_transformer_roberta_test_results.csv'
+    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/input/Basque_INTRs_transformer_aux.csv'
+    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/results/Basque_aux_results_v2.csv'
+    #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_test_transformers.csv'
+    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/Hindi_transformer_electra_v2.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_transf_results.csv'
-    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='roberta', task='MLM', lang='HI')
-    t_surp.get_all_scores_hi_aux()
-    
+    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='EU')
+    t_surp.get_all_scores_eu_aux()
+    """
+    tokenizer = RobertaTokenizer.from_pretrained(modelname)
+    fill_mask = pipeline("fill-mask", modelname, tokenizer=tokenizer)
+    for s_dict in t_surp.read_stimuli(stim_path):
+        sent = s_dict['sent'].replace('***[MASK]***','<mask>')
+        toksd = tokenizer.tokenize(s_dict['form'])
+        print(toksd) 
+        re = fill_mask(sent, targets=s_dict['form'])
+        print(len(re))
+    """

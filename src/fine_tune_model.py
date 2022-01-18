@@ -28,18 +28,37 @@ def read_dict(path_conds):
     return d 
 
 
-def read_data(path, label_dict, lang='HI'):
+def read_data(path, label_dict, masked=False, lang='HI'):
     all_sents = dict()
     with open(path, 'r') as rf:
         next(rf)
         for l in rf:
             l = l.strip()
             line = l.split('\t')
-            sent = ''
             id = line[0]
-            for word in line[1:]:
-                if word != 'NA':
-                    sent += word.strip('\"') + ' '
+            if masked:
+                length = int(line[-1])
+                sentence = line[1:length+1]
+                sent_list = []
+                for i, word in enumerate(sentence):
+                    word = word.strip('\"')
+                    if word == 'NA':
+                        w = '[unk]'
+                    elif word != '[ARG]' and word != '[MASK]' and word != 'NA':
+                        if sentence[i-1].strip('\"') == '[ARG]':
+                            w = word
+                        else:
+                            w = '[unk]'
+                    elif word =='[ARG]' or word == '[MASK]':
+                        w = word.strip('\"')
+                    sent_list.append(w)
+                sent = ' '.join(sent_list)
+                print(sent)
+            else:
+                sent = ''
+                for word in line[1:]:
+                    if word != 'NA':
+                        sent += word.strip('\"') + ' '
             all_sents[id] = (sent.strip(), label_dict[id]['mt'], label_dict[id]['cf'])
     return all_sents
             
@@ -239,22 +258,24 @@ def _get_preds(sent,words, model):
         return [float(x) for x in scores]    
 
 if __name__ == '__main__':
-    path_data = '/Users/eva/Documents/Work/experiments/Agent_first_project/Hindi_training_data_sents_large.txt'
-    path_conds = '/Users/eva/Documents/Work/experiments/Agent_first_project/Hindi_training_data_conds_large.txt'
+    path_data = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Hindi_training_data/Hindi_train_masked.csv'
+    path_conds = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Hindi_training_data/Hindi_training_data_conds_large.txt'
     model_name ='monsoon-nlp/hindi-bert' 
     #train(path_data)
     model_initial = BertFineTuning(model_name)
     dict_conds = read_dict(path_conds)
-    data = read_data(path_data, dict_conds)
+    data = read_data(path_data, dict_conds, masked=True)
+    """
     sents, labels = prepare_data(data, '[MASK]')
     data_tr, lab_tr, data_te, lab_te = split_data(sents, labels)
 
     model_trained = train(data_tr, lab_tr, data_te, lab_te, model_initial,'', 30)
-    out_p = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/test_trained.csv'
-    out_p_2 = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/test_untrained.csv'
+    out_p = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/test_trained_masked.csv'
+    out_p_2 = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/test_untrained_masked.csv'
     data_extr = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_test_transformers.csv'
     evaluate_external(data_extr, model_trained, out_p)
     model_not_trained = BertFineTuning(model_name)
     evaluate_external(data_extr, model_not_trained, out_p_2)
+    """
 
 
