@@ -67,43 +67,69 @@ class TransformerSurprisal():
         return probs[0][target_idx]
 
 
-    def get_all_scores_each_word(self):
+    def get_all_scores_each_word(self, all_scores=False):
         wf = open(self.out_path, 'w')
         if self.test:
-            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'idx', 'word', 'foi', 'score', 'correct', 'cond_verb', 'len_score'))
+            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'idx', 'word', 'foi', 'score_f','score_m', 'correct', 'cond_verb', 'len_score'))
         else:
-            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'idx', 'word', 'foi', 'score', 'cond_verb', 'len_score'))
+            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'idx', 'word', 'foi', 'score_f', 'score_m', 'len_score'))
         for stim_dict in self.read_stimuli(self.s_path):
-            sentence = stim_dict['sent'].replace('***[MASK]***', stim_dict['form'] + ' ')
+            print('sent id : {}'.format(stim_dict['sent_id']))
+            sentence = stim_dict['sent'].replace('***[MASK]***', stim_dict['form']) #+ ' ')
             scores = self._get_preds_for_each_word(sentence)
+            verb_de = ''
+            if self.test == True and self.lang == 'DE':
+                verb_de = sentence.split(' ')[-2]
+                print(verb_de)
             i = 0
             for word, sc in scores.items():
                 #if word == stim_dict['form']:
                 word = word.strip('\"')
-                score_f = np.mean(sc)
+                #score_f = np.mean(sc)
+                if all_scores:
+                    score_f = sc
+                    score_m = np.mean(sc)
+                else:
+                    score_f = sc[0]
+                    score_m = np.mean(sc)
+                    #score_f = sc[-1]
                 this_form = False
                 if word == stim_dict['form']:
                     this_form = True
                 if self.test:
-                    wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, score_f, stim_dict['correct'], stim_dict['cond_verb'], len(sc)))
+                    if all_scores:
+                        for sc_c in score_f:
+                            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, sc_c, stim_dict['correct'], stim_dict['cond_verb'], len(sc)))
+                    else:
+                        if self.test and self.lang == 'DE':
+                            cond = stim_dict['cond'] + "_" + verb_de.split('_')[0]
+                            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], cond,i, word, this_form, score_f, stim_dict['correct'], stim_dict['cond_verb'], len(sc)))
+                        else:
+                            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, score_f, stim_dict['correct'], stim_dict['cond_verb'], len(sc)))
                 else:
-                    wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, score_f, stim_dict['cond_verb'], len(sc)))
+                    #if self.lang == 'EU':
+                    wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, score_f, score_m,  len(sc)))
+                    #if self.lang.upper() == 'HI':
+                    #wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, score_f, '', len(sc)))
+                    #else:
+                    #    wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'],i, word, this_form, score_f, stim_dict['cond_verb'], len(sc)))
                 i += 1
         wf.close()
     def get_all_scores(self):
         c = 0 
         wf = open(self.out_path, 'w')
         if self.test:
-            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id','cond', 'score', 'correct_form', 'predicted','actual', 'nr_word_pieces'))
+            wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id','cond', 'score_f','score_m', 'correct_form', 'predicted', 'nr_word_pieces'))
         else:
-            wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id','cond', 'score', 'form', 'cond_verb', 'nr_word_pieces'))
+            wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id','cond', 'score_f', 'score_m', 'form','nr_word_pieces'))
         for stim_dict in self.read_stimuli(self.s_path):  #sent, wc, w1, w2, w3, s_id, c1, c2
             if self.task == 'MLM':
                 score = self._get_preds(stim_dict['sent'], stim_dict['form'])
             else:
                 curr_sent = stim_dict['sent'].replace(self.mask_tok, stim_dict['form'])
                 score = self._get_discriminator_preds(curr_sent)
- 
+            verb_de = stim_dict['sent'].split(' ')[-2]
+            print(score)
             """ 
             if len(score) == 4:
                 score_f = score[2] #np.mean(score[1:3]) #np.mean(score[1:3])
@@ -118,57 +144,40 @@ class TransformerSurprisal():
             #if len(score)< 2:
             #    continue
             score_f = score[0]
+            score_m = np.mean(score)
             #if score_:
                 #score_f = np.mean(score)
             if self.test:
-                wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score_f, stim_dict['correct'], stim_dict['form'], stim_dict['cond_verb'], len(score)))
+                if self.lang == 'DE':
+                    cond = stim_dict['cond'] + "_" + verb_de
+                    wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], cond, score_f, score_m,  stim_dict['correct'], stim_dict['form'], len(score)))
+
+                else:
+                    wf.write('{}\t{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score_f, score_m, stim_dict['correct'], stim_dict['cond_verb'], len(score)))
             else:
-                wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score_f, stim_dict['form'], stim_dict['cond_verb'], len(score))) 
+                wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score_f, score_m, stim_dict['form'], len(score))) 
         wf.close()
 
 
-    def get_all_scores_hi_aux(self):
-        c = 0 
-        wf = open(self.out_path, 'w')
-        wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id','cond', 'score', 'correct_form', 'cond_verb', 'nr_word_pieces')) #something changed, maybe not correct ocrrectly
-        for stim_dict in self.read_stimuli(self.s_path):  #sent, wc, w1, w2, w3, s_id, c1, c2
-            if self.task == 'MLM':
-                score = self._get_preds(stim_dict['sent'], stim_dict['form'])
-            else:
-                curr_sent = stim_dict['sent'].replace(self.mask_tok, stim_dict['form'])
-                score = self._get_discriminator_preds(curr_sent)
- 
-            """ 
-            if len(score) == 4:
-                score_f = score[2] #np.mean(score[1:3]) #np.mean(score[1:3])
-            elif len(score) == 3:
-                score_f = score[1]
-            elif len(score) >4:
-                #print(score, score[2:5])
-                score_f = score[-2] #np.mean(score[2:5])
-            else:
-                print('wrong score?')
-            """
-            if len(score)< 2:
-                continue
-            score_f = score[-1]
-            #if score_:
-                #score_f = np.mean(score)
-            wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format(stim_dict['sent_id'], stim_dict['cond'], score_f, stim_dict['correct'], stim_dict['cond_verb'], len(score)))
     def _get_preds_for_each_word(self, sent):
         oov = self.tokenizer.convert_tokens_to_ids('[oov]')
+        if self.lang == 'DE':
+            sent = sent.replace('.', ' .')
         sent_split = sent.split(' ')
+        #print(sent_split)
         scores = dict()
         for i, word in enumerate(sent_split):
-            scores[word] = []
-            tokens = ['[CLS]'] + self.tokenizer.tokenize(sent[:i]) #pre target
+            #print(word, sent_split[:i])
+            tokens = ['[CLS]'] + self.tokenizer.tokenize(' '.join(sent_split[:i])) #pre target
             target_idx = len(tokens)
             target = [self.mask_tok]
-            post = sent[i+1:]
+            post = ' '.join(sent_split[i+1:]).strip()
             if not self.test:
                 tokens += target
             else:
                 tokens += target + self.tokenizer.tokenize(post) + ['[SEP]']
+            #print('whole: {}'.format(tokens))
+            print(word, self.tokenizer.tokenize(word))
             input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
             target_word = word
             try:
@@ -179,13 +188,20 @@ class TransformerSurprisal():
             except:
                 print('skipping',word)
                 continue
+            if oov in input_ids:
+                print('oov in tokens: ', tokens)
             target_ids = self.tokenizer.encode(target_word, add_special_tokens=False)
             tens = torch.LongTensor(input_ids).unsqueeze(0)
             res = self.model(tens).logits[0, target_idx]
             sm = torch.nn.Softmax(dim=0)
             res = sm(res)
             score = res[target_ids]
-            scores[word] = [s.item() for s in score]
+            #if word not in scores:
+            #    scores[word] = [s.item() for s in score]
+            #else:
+            #    word = word + '_2'
+            word_id = word + "_" + str(i)
+            scores[word_id] = [s.item() for s in score] 
         return scores
     def _get_preds(self, sent,word):
         #for sent, wc, w1, w2 in self.read_stimuli(self.s.path):
@@ -199,6 +215,7 @@ class TransformerSurprisal():
             tokens += target + self.tokenizer.tokenize(post) + ['[SEP]']
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens)
         oov = self.tokenizer.convert_tokens_to_ids('[oov]')
+        print(word, self.tokenizer.tokenize(word))
         try:
             word_id = self.tokenizer.encode(word.strip(), add_special_tokens=False)#['input_ids']
             if oov in word_id:
@@ -228,9 +245,15 @@ class TransformerSurprisal():
                 l = l.strip()
                 line = l.split('\t') 
                 if self.test:
-                    yield {'sent_id':line[0], 'cond':line[1], 'sent': line[2], 'form': line[3], 'correct': line[4], 'cond_verb': line[5]}
+                    if self.lang == 'Hi':
+                        yield {'sent_id':line[0], 'cond':line[1], 'sent': line[2], 'form': line[3], 'correct': line[4], 'cond_verb': line[5]}
+                    else:
+                        yield {'sent_id':line[0], 'cond':line[1], 'sent': line[2], 'form': line[3], 'correct': line[4], 'cond_verb': line[5]}
                 else:
-                    yield {'sent_id':line[0], 'cond':line[1], 'sent': line[2], 'form': line[3], 'cond_verb': line[4]}
+                    #if self.lang.upper() == 'HI':
+                    yield {'sent_id':line[0], 'cond':line[1], 'sent': line[2], 'form': line[3]}
+                    #else:
+                    #yield {'sent_id':line[0], 'cond':line[1], 'sent': line[2], 'form': line[3], 'cond_verb': line[4]}
 
     def get_subwords(self):
         with open(self.out_path, 'w') as wf:
@@ -245,7 +268,7 @@ if __name__ == '__main__':
     path = ''
     outpath = ''
     #modelname = 'bert-base-german-cased'
-    modelname = 'monsoon-nlp/hindi-tpu-electra'
+    #modelname = 'monsoon-nlp/hindi-tpu-electra'
     #modelname = 'neuralspace-reverie/indic-transformers-te-bert'
     #modelname = 'monsoon-nlp/hindi-bert'
     #modelname = 'ixa-ehu/berteus-base-cased'
@@ -254,10 +277,13 @@ if __name__ == '__main__':
     #modelname = 'google/electra-small-discriminator'
     #modelname= 'flax-community/roberta-hindi'
     #transi = TransformerSurprisal('hindi', path, outpath)
+    #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/Basque_test_transformer.csv'
+    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/Basque_test_transformer.csv'
+    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/dummy.csv'
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_transformers_res.csv'
-    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/input/Plos_stimuli_test_transformers.csv'
-    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/writing/results/Hindi_test_transf_v1.csv'
+    #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/writing/stimuli/Hindi_psych_transformer.csv'
+    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/writing/results/Hindi_psych_results_v1.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/results/dummy.csv'
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/HINDI/Plos_stimuli_transf.csv'
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/input/Basque_INTRs_transformer_aux.csv'
@@ -271,10 +297,28 @@ if __name__ == '__main__':
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/GERMAN/stimuli_results_transf_bert_whole_sent.csv'
     #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/GERMAN/dummy_test.csv'
     #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/GERMAN/dummy_test_out.csv'
-    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='electra', task='MLM',test=True, lang='Hi')
-    t_surp.get_all_scores_each_word()
-
+    
+    
+    #t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='electra', task='MLM',test=True, lang='Hi')
+    #t_surp.get_all_scores()
+ 
+    modelname = 'ixa-ehu/berteus-base-cased'
+    #modelname = 'monsoon-nlp/hindi-tpu-electra'
+    #modelname = 'bert-base-german-cased'
+    #modelname = 'neuralspace-reverie/indic-transformers-hi-bert'
+    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/Basque_psych_transformer.csv'
+    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/dummy_basque.txt'
+    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='EU')
+    t_surp.get_all_scores()
     """
+    for i in range(46,100):
+        print(i)
+        stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/German2_psych_transf_nospill.csv'
+        out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/German_100runs_CR_newdata/German_psych_BERT_{}.csv'.format(str(i))
+        t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='DE')
+        
+
+    
     tokenizer = RobertaTokenizer.from_pretrained(modelname)
     fill_mask = pipeline("fill-mask", modelname, tokenizer=tokenizer)
     for s_dict in t_surp.read_stimuli(stim_path):

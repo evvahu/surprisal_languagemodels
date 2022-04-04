@@ -111,11 +111,29 @@ def create_aux_test(path, out):
 
 if __name__ == '__main__':
     #path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/input/Basque_INTRs_transformers.csv'
-    path =  '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/input/Basque_INTRs_transformer_aux.csv'
+    path =  '/Users/eva/Documents/Work/experiments/Agent_first_project/writing/stimuli/Basque_psych_transformer.csv'
     #out = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/dummy.txt' 
-    out = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/Basque_INTRs_LSTM_test.csv'
-    dict_conds = {'dira':'Amb_Abs', 'dute':'Amb_Erg', 'da':'Unamb_Abs', 'du': 'Unamb_Erg'}
+    out = '/Users/eva/Documents/Work/experiments/Agent_first_project/writing/stimuli/Basque_psych_transformer_new.csv'
     
+    with open(out, 'w') as wf:
+        wf.write('{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent', 'form'))
+        with open(path, 'r') as rf: #nr	amb	align	sent	corr
+            next(rf)
+            for l in rf:
+                l = l.strip()
+                line = l.split('\t')
+                cond = line[1]
+                sent = line[2].replace('  ', ' ')
+                wf.write('{}\t{}\t{}\t{}\n'.format(line[0], cond, sent, line[3]))
+
+    
+    
+    
+    dict_conds = {'dira':'Amb_Abs', 'dute':'Amb_Erg', 'da':'Unamb_Abs', 'du': 'Unamb_Erg'}
+
+
+
+    """
     with open(out, 'w') as wf:
         wf.write('{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent', 'correct', 'cond_verb'))
         with open(path, 'r') as rf:
@@ -129,7 +147,7 @@ if __name__ == '__main__':
                 cond_verb = line[5]
                 wf.write('{}\t{}\t{}\t{}\t{}\n'.format(sent_id, cond, sent, corr, cond_verb))
 
-    """
+    
     with open(out, 'w') as wf:
         wf.write('{}\t{}\t{}\t{}\t{}\t{}\n'.format('sent_id', 'cond', 'sent','form', 'correct', 'cond_verb'))
         with open(path, 'r') as rf:

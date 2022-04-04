@@ -113,7 +113,7 @@ def preprocess_BMC(path, out_path):
                     sent_c +=1
                     word_c += len(nltk.tokenize.word_tokenize(s))
     print('nr of sentences: {}, number of tokens: {}'.format(sent_c, word_c))
-def shorten_BMC(path, out_path, max=170000000):
+def shorten_BMC(path, out_path, max=210000000):
     tok_count = 0
     all_sents = []
     with open(path, 'r') as rf:
@@ -139,6 +139,6 @@ def shorten_BMC(path, out_path, max=170000000):
 if __name__ == '__main__':
     #path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/corpusBMC.txt.gz'
 
-    path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/bmc_sents.txt' 
-    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/BASQUE/bmc_sents_short2.txt'
+    path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/GERMAN/wiki/wiki-all-shuf/wiki-all-shuf.txt'
+    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/Surprisal_LMs/data/GERMAN/wiki/wiki-all-shuf/wiki-all-shuf_shortened.txt'
     shorten_BMC(path, out_path)
