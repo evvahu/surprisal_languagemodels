@@ -302,23 +302,24 @@ if __name__ == '__main__':
     #t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='electra', task='MLM',test=True, lang='Hi')
     #t_surp.get_all_scores()
  
-    modelname = 'ixa-ehu/berteus-base-cased'
+    #modelname = 'ixa-ehu/berteus-base-cased'
     #modelname = 'monsoon-nlp/hindi-tpu-electra'
     #modelname = 'bert-base-german-cased'
-    #modelname = 'neuralspace-reverie/indic-transformers-hi-bert'
-    stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/Basque_psych_transformer.csv'
-    out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/dummy_basque.txt'
-    t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='EU')
-    t_surp.get_all_scores()
-    """
-    for i in range(46,100):
+    modelname = 'neuralspace-reverie/indic-transformers-hi-bert'
+    #stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/Hindi2_psych_transformer.csv'
+    #out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/Hindi2_psych_transformer.csv'
+    #t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='HI')
+    #t_surp.get_all_scores()
+    
+    for i in range(0,100):
         print(i)
-        stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/German2_psych_transf_nospill.csv'
-        out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/German_100runs_CR_newdata/German_psych_BERT_{}.csv'.format(str(i))
-        t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='DE')
+        stim_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/stimuli/Hindi2_psych_transformer.csv'
+        out_path = '/Users/eva/Documents/Work/experiments/Agent_first_project/agent_lms/results/Hindi2_100runs/Hindi_psych_BERT_{}.csv'.format(str(i))
+        t_surp = TransformerSurprisal(modelname, stim_path, out_path, transf='bert', task='MLM',test=False, lang='HI')
+        t_surp.get_all_scores()
         
 
-    
+    """
     tokenizer = RobertaTokenizer.from_pretrained(modelname)
     fill_mask = pipeline("fill-mask", modelname, tokenizer=tokenizer)
     for s_dict in t_surp.read_stimuli(stim_path):
